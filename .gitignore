@@ -1,0 +1,32 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+*.db
+*.sqlite
+*.sqlite3
+logs/
+generated_projects/*
+!generated_projects/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+node_modules/
+.next/
+dist/
+build/
+# IDE files
+.vscode/
+.idea/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
