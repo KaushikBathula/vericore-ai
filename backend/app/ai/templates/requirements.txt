@@ -309,3 +309,38 @@ If multiple interpretations are possible:
 - Recommend that clarification be obtained before RTL generation.
 
 Never silently choose one interpretation.
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+You MUST return ONLY valid JSON.
+
+Do NOT include:
+
+- Markdown
+- Code fences
+- Explanations
+- Notes
+- Any text before or after the JSON
+
+The JSON MUST exactly follow this schema:
+
+{
+  "module_name": "",
+  "description": "",
+  "inputs": [],
+  "outputs": [],
+  "operations": [],
+  "parameters": {},
+  "verification_points": []
+}
+
+Rules:
+
+- Always return valid JSON.
+- Never omit any field.
+- Use empty arrays [] when information is unavailable.
+- Use an empty object {} for parameters if none exist.
+- Do not invent hardware requirements.
+- If information is missing, mention it inside "verification_points".
