@@ -1,7 +1,10 @@
 from backend.app.agents.requirement_agent import RequirementAgent
 from backend.app.agents.rtl_agent import RTLAgent
+from backend.app.agents.verification_agent import VerificationAgent
+
 from backend.app.schemas.requirement_spec import RequirementSpec
 from backend.app.schemas.rtl_design import RTLDesign
+from backend.app.schemas.verification_plan import VerificationPlan
 
 
 class GenerationService:
@@ -12,19 +15,26 @@ class GenerationService:
     def __init__(self):
         self.requirement_agent = RequirementAgent()
         self.rtl_agent = RTLAgent()
+        self.verification_agent = VerificationAgent()
 
     def generate(
         self,
         requirement: str,
-    ) -> tuple[RequirementSpec, RTLDesign]:
+    ) -> tuple[
+        RequirementSpec,
+        RTLDesign,
+        VerificationPlan,
+    ]:
         """
-        Execute the complete AI pipeline.
+        Execute complete AI pipeline.
 
-        Natural Language
+        Requirement
             ↓
         RequirementSpec
             ↓
         RTLDesign
+            ↓
+        VerificationPlan
         """
 
         requirement_spec = self.requirement_agent.execute(
@@ -35,4 +45,12 @@ class GenerationService:
             requirement_spec
         )
 
-        return requirement_spec, rtl_design
+        verification_plan = self.verification_agent.execute(
+            rtl_design
+        )
+
+        return (
+            requirement_spec,
+            rtl_design,
+            verification_plan,
+        )
