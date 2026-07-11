@@ -1,8 +1,8 @@
 import httpx
 
-from app.core.config import get_settings
-from app.core.providers.base import BaseLLMProvider
-from app.schemas.llm_response import LLMResponse
+from backend.app.core.config import get_settings
+from backend.app.core.providers.base import BaseLLMProvider
+from backend.app.schemas.llm_response import LLMResponse
 
 
 class OllamaProvider(BaseLLMProvider):

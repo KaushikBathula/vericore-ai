@@ -1,10 +1,10 @@
 import logging
 import time
 
-from app.core.config import get_settings
-from app.core.providers.base import BaseLLMProvider
-from app.core.providers.ollama_client import OllamaProvider
-from app.schemas.llm_response import LLMResponse
+from backend.app.core.config import get_settings
+from backend.app.core.providers.base import BaseLLMProvider
+from backend.app.core.providers.ollama_client import OllamaProvider
+from backend.app.schemas.llm_response import LLMResponse
 
 logger = logging.getLogger(__name__)
 

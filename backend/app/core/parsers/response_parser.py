@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.schemas.requirement_spec import RequirementSpec
+from backend.app.schemas.requirement_spec import RequirementSpec
 
 
 class ResponseParser:

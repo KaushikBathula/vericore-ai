@@ -2,9 +2,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.schemas.operation import Operation
-from app.schemas.port import Port
-from app.schemas.verification_point import VerificationPoint
+from backend.app.schemas.operation import Operation
+from backend.app.schemas.port import Port
+from backend.app.schemas.verification_point import VerificationPoint
 
 
 class RequirementSpec(BaseModel):

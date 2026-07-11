@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas.llm_response import LLMResponse
+from backend.app.schemas.llm_response import LLMResponse
 
 
 class BaseLLMProvider(ABC):

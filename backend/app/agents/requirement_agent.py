@@ -1,9 +1,9 @@
 import logging
 
-from app.agents.base_agent import BaseAgent
-from app.ai.prompts import get_prompt
-from app.core.parsers.response_parser import ResponseParser
-from app.schemas.requirement_spec import RequirementSpec
+from backend.app.agents.base_agent import BaseAgent
+from backend.app.ai.prompts import get_prompt
+from backend.app.core.parsers.response_parser import ResponseParser
+from backend.app.schemas.requirement_spec import RequirementSpec
 
 logger = logging.getLogger(__name__)
 

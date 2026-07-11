@@ -79,3 +79,11 @@ Prompts must not be embedded in Python files.
 - `backend/tests/integration/`: workflow and tool integration tests.
 - `backend/tests/api/`: FastAPI route tests.
 - `tests/e2e/`: future browser-level tests.
+
+
+project_manager_agent.py
+
+Coordinates every AI agent
+Maintains execution state
+Handles retries
+Controls LangGraph execution

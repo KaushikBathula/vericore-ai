@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.core.llm_client import LLMClient
+from backend.app.core.llm_client import LLMClient
 
 
 class BaseAgent(ABC):

@@ -78,3 +78,110 @@ The first release should support templates and agent guidance for:
 AND Gate, OR Gate, XOR Gate, NOT Gate, Multiplexer, Decoder, Encoder, Priority Encoder, Comparator, Adder, Subtractor, ALU, Register, Counter, Shift Register, FSM, UART, and FIFO.
 
 Support should be implemented through extensible module capability definitions rather than hardcoded logic in one file.
+
+
+## Project Manager Agent
+
+The Project Manager Agent is the central orchestrator of VeriCore AI. It does not generate RTL or execute engineering tasks directly. Instead, it coordinates all specialized AI agents, manages the workflow state, tracks execution progress, decides which agent should execute next, handles retry logic after failures, and determines when the workflow has successfully completed.
+
+Responsibilities include:
+
+- Initialize a new design workflow
+- Maintain the global workflow state
+- Delegate tasks to specialized agents
+- Monitor execution status
+- Handle retry and recovery logic
+- Coordinate LangGraph execution
+- Collect generated artifacts
+- Trigger synthesis and documentation after successful verification
+- Terminate the workflow upon successful completion
+
+## Autonomous Workflow
+
+The autonomous workflow follows a centralized orchestration model where the Project Manager Agent coordinates all engineering agents.
+
+                     User
+                       │
+                       ▼
+            Project Manager Agent
+                       │
+                       ▼
+            Requirement Agent
+                       │
+                       ▼
+                 RTL Agent
+                       │
+                       ▼
+           Verification Agent
+                       │
+                       ▼
+             Simulation Agent
+                       │
+              Compilation OK?
+               /             \
+             Yes             No
+              │               │
+              ▼               ▼
+      Synthesis Agent    Debug Agent
+              │               │
+              └───────┬───────┘
+                      ▼
+          Documentation Agent
+                      │
+                      ▼
+             Download Package
+
+
+## Workflow State
+
+The Project Manager maintains a shared workflow state throughout execution.
+
+The workflow state includes:
+
+- Project Identifier
+- Module Name
+- Current Workflow Stage
+- Active Agent
+- Retry Counter
+- Generated RTL Files
+- Testbench Files
+- Simulation Status
+- Compilation Errors
+- Synthesis Status
+- Generated Reports
+- Artifact Locations
+- Execution Logs
+- Overall Workflow Status
+
+Every agent receives the current workflow state, performs its specialized task, updates the state, and returns control to the Project Manager Agent.
+
+
+## Memory Layer
+
+VeriCore AI includes a lightweight memory layer that stores workflow context and generated engineering artifacts.
+
+The memory layer consists of:
+
+- Project Memory
+- Artifact Memory
+- Conversation Memory
+
+This enables agents to reference previous RTL versions, debugging iterations, simulation outputs, synthesis reports, and generated documentation without losing workflow context.
+
+The memory layer is designed to support future expansion toward long-running autonomous engineering sessions.
+
+## Future Expansion
+
+The architecture is intentionally modular.
+
+Future releases may include:
+
+- Timing Analysis Agent
+- Power Analysis Agent
+- Formal Verification Agent
+- DFT Agent
+- RTL Optimization Agent
+- Linting Agent
+- Multi-LLM Support
+- Cloud Simulation
+- Distributed Agent Execution
