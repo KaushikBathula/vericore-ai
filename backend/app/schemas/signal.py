@@ -13,6 +13,7 @@ class SignalType(str, Enum):
     WIRE = "wire"
     REG = "reg"
     LOGIC = "logic"
+    INTERNAL = "internal"
 
 
 class Signal(BaseModel):
@@ -24,12 +25,12 @@ class Signal(BaseModel):
     and intermediate signals.
     """
 
-    name: str = Field(
+    signal_name: str = Field(
         ...,
         description="Signal name."
     )
 
-    width: int = Field(
+    signal_width: int = Field(
         default=1,
         ge=1,
         description="Signal width in bits."

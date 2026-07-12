@@ -72,14 +72,32 @@ class ResponseParser:
 
         for operation in data.get("operations", []):
 
+            # name -> operation_name
+            if (
+                "operation_name" not in operation
+                and "name" in operation
+            ):
+                operation["operation_name"] = operation.pop("name")
+
+            # operation_type -> operation_name
+            if (
+                "operation_name" not in operation
+                and "operation_type" in operation
+            ):
+                operation["operation_name"] = operation.pop("operation_type")
+
+            # functionality -> description
             if (
                 "description" not in operation
                 and "functionality" in operation
             ):
                 operation["description"] = operation.pop("functionality")
 
-            elif (
+            # function -> description
+            if (
                 "description" not in operation
                 and "function" in operation
             ):
                 operation["description"] = operation["function"]
+
+            operation.setdefault("description", "")
