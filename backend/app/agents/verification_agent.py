@@ -30,12 +30,17 @@ class VerificationAgent(BaseAgent):
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
+        print("\n========== RAW VERIFICATION RESPONSE ==========\n")
+        print(response.content)
+        print("\n===============================================\n")
 
         if not response.success:
             raise RuntimeError(
                 f"LLM generation failed: {response.error}"
             )
-
+        print("\n========== RAW VERIFICATION RESPONSE ==========\n")
+        print(response.content)
+        print("\n==============================================\n")
         plan = VerificationParser.parse(
             response.content
         )

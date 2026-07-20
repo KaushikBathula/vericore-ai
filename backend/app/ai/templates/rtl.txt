@@ -27,4 +27,10 @@ Rules:
 - internal_signals must always be a list of objects, not strings.
 - Each internal signal object must contain:
   signal_name, signal_width, signal_type, direction.
-- Never return internal_signals as ["signal1","signal2"].
+- Never return internal_signals as ["signal1","signal2"]. 
+Each element of "derived_operations" MUST be an object with:
+
+- operation_name (required)
+- description (optional)
+
+Do NOT use "signal_name" as a replacement for "operation_name".

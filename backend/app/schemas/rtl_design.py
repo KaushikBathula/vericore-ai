@@ -11,10 +11,6 @@ class RTLDesign(BaseModel):
     """
     Represents the AI-generated RTL implementation derived
     from a validated RequirementSpec.
-
-    This model serves as the canonical implementation model
-    for all downstream generators such as Verilog,
-    testbench, assertions, documentation, and synthesis.
     """
 
     requirement: RequirementSpec = Field(
@@ -24,20 +20,26 @@ class RTLDesign(BaseModel):
 
     internal_signals: list[Signal] = Field(
         default_factory=list,
-        description="Internal RTL signals required for implementation."
+        description="Internal RTL signals."
     )
 
     implementation_strategy: str = Field(
         default="",
-        description="High-level implementation approach chosen by the AI."
+        description="Implementation strategy."
     )
 
     derived_operations: list[Operation] = Field(
         default_factory=list,
-        description="Operations after RTL refinement."
+        description="RTL operations."
+    )
+
+    # NEW
+    parameters: dict[str, int | str] = Field(
+        default_factory=dict,
+        description="Module parameters."
     )
 
     metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional implementation metadata."
+        description="Additional metadata."
     )

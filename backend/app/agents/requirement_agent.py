@@ -41,6 +41,9 @@ class RequirementAgent(BaseAgent):
             raise RuntimeError(
                 f"LLM generation failed: {response.error}"
             )
+        print("\n========== RAW REQUIREMENT RESPONSE ==========\n")
+        print(response.content)
+        print("\n=============================================\n")
 
         specification = ResponseParser.parse_requirement_response(
             response.content

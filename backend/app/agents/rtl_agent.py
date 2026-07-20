@@ -34,6 +34,12 @@ class RTLAgent(BaseAgent):
                 f"LLM generation failed: {response.error}"
             )
 
+        # -----------------------------------------------------
+        # Temporary debug output
+        # Remove after parser issue is resolved
+        # -----------------------------------------------------
+        
+
         rtl_design = RTLResponseParser.parse(
             response.content,
             requirement,

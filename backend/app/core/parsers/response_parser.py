@@ -1,9 +1,10 @@
 import json
+from backend.app.utils.json_repair import repair_json
 import re
 from typing import Any
 
 from pydantic import ValidationError
-
+from backend.app.utils.json_repair import repair_json
 from backend.app.schemas.requirement_spec import RequirementSpec
 
 
@@ -19,12 +20,18 @@ class ResponseParser:
         """
 
         response = ResponseParser._strip_markdown(response)
-
+        response = repair_json(response)
         data = json.loads(response)
+        # -----------------------------
+        # Default required fields
+        # -----------------------------
 
+        data.setdefault("description", "")
+        data.setdefault("parameters", {})
+        data.setdefault("verification_points", [])
         ResponseParser._normalize_ports(data)
         ResponseParser._normalize_operations(data)
-
+        ResponseParser._normalize_verification_points(data)
         try:
             return RequirementSpec.model_validate(data)
 
@@ -101,3 +108,43 @@ class ResponseParser:
                 operation["description"] = operation["function"]
 
             operation.setdefault("description", "")
+    @staticmethod
+    def _normalize_verification_points(
+        data: dict[str, Any],
+    ) -> None:
+        """
+        Normalize verification points returned by different LLMs.
+        """
+
+        normalized = []
+
+        for vp in data.get("verification_points", []):
+
+            if isinstance(vp, str):
+
+                normalized.append(
+                    {
+                        "name": vp,
+                        "description": vp,
+                    }
+                )
+
+            elif isinstance(vp, dict):
+
+                normalized.append(
+                    {
+                        "name": vp.get(
+                            "name",
+                            vp.get(
+                                "point_name",
+                                "Verification"
+                            ),
+                        ),
+                        "description": vp.get(
+                            "description",
+                            "",
+                        ),
+                    }
+                )
+
+        data["verification_points"] = normalized

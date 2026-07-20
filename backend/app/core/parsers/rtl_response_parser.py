@@ -2,7 +2,7 @@ import json
 import re
 
 from pydantic import ValidationError
-
+from backend.app.utils.json_repair import repair_json
 from backend.app.schemas.requirement_spec import RequirementSpec
 from backend.app.schemas.rtl_design import RTLDesign
 
@@ -22,16 +22,21 @@ class RTLResponseParser:
 
         if cleaned:
             response = cleaned.group(0)
-
+        response = repair_json(response)
         data = json.loads(response)
 
         # Attach original requirement
         data["requirement"] = requirement
 
-        # ----------------------------------
-        # Normalize internal signals
-        # ----------------------------------
+        # -----------------------------
+        # Parameters
+        # -----------------------------
+        if "parameters" not in data:
+            data["parameters"] = {}
 
+        # -----------------------------
+        # Internal signals
+        # -----------------------------
         signals = data.get("internal_signals", [])
         normalized_signals = []
 
@@ -56,15 +61,11 @@ class RTLResponseParser:
 
         data["internal_signals"] = normalized_signals
 
-        # ----------------------------------
-        # Normalize operations
-        # ----------------------------------
-        
-
+        # -----------------------------
+        # Operations
+        # -----------------------------
         derived_ops = data.get("derived_operations")
 
-        # If the RTL model omitted operations or returned an empty list,
-        # reuse the operations extracted by the Requirement Agent.
         if not derived_ops:
 
             if "operations" in data and data["operations"]:
@@ -84,11 +85,30 @@ class RTLResponseParser:
             if "operation_type" in op and "operation_name" not in op:
                 op["operation_name"] = op.pop("operation_type")
 
+            if "signal_name" in op and "operation_name" not in op:
+                op["operation_name"] = op.pop("signal_name")    
+
             if "functionality" in op and "description" not in op:
                 op["description"] = op.pop("functionality")
 
             if "function" in op and "description" not in op:
                 op["description"] = op.pop("function")
+
+    # -----------------------------
+    # Normalize RTL generation fields
+    # -----------------------------
+
+            op.setdefault("destination", None)
+
+            op.setdefault("expression", None)
+
+            op.setdefault("implementation_style", "assign")
+
+            op.setdefault("operands", [])
+
+            op.setdefault("operator", None)
+
+        
         try:
             return RTLDesign.model_validate(data)
 

@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
+
+from backend.app.schemas.test_vector import TestVector
 
 
 class TestCase(BaseModel):
     """
-    Represents a verification test scenario.
+    Represents a high-level verification scenario.
     """
 
     name: str
@@ -21,6 +25,10 @@ class VerificationPlan(BaseModel):
     """
 
     test_cases: list[TestCase] = Field(
+        default_factory=list
+    )
+
+    test_vectors: list[TestVector] = Field(
         default_factory=list
     )
 
