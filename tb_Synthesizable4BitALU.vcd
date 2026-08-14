@@ -1,0 +1,62 @@
+$date
+	Mon Jul 27 00:28:41 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb_Synthesizable4BitALU $end
+$var wire 1 ! ADD_OUT $end
+$var wire 1 " AND_OUT $end
+$var wire 1 # OR_OUT $end
+$var wire 1 $ SUB_OUT $end
+$var wire 1 % XOR_OUT $end
+$var reg 4 & A [3:0] $end
+$var reg 4 ' B [3:0] $end
+$scope module dut $end
+$var wire 4 ( A [3:0] $end
+$var wire 1 ! ADD_OUT $end
+$var wire 1 " AND_OUT $end
+$var wire 1 ) A_0 $end
+$var wire 1 * A_1 $end
+$var wire 1 + A_2 $end
+$var wire 1 , A_3 $end
+$var wire 4 - B [3:0] $end
+$var wire 1 . B_0 $end
+$var wire 1 / B_1 $end
+$var wire 1 0 B_2 $end
+$var wire 1 1 B_3 $end
+$var wire 1 # OR_OUT $end
+$var wire 1 $ SUB_OUT $end
+$var wire 1 % XOR_OUT $end
+$var parameter 32 2 WIDTH $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b100 2
+$end
+#0
+$dumpvars
+z1
+z0
+z/
+z.
+b0 -
+z,
+z+
+z*
+z)
+b0 (
+b0 '
+b0 &
+z%
+z$
+z#
+z"
+0!
+$end
+#20

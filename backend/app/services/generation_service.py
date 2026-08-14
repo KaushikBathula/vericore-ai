@@ -46,7 +46,8 @@ class GenerationService:
         )
 
         verification_plan = self.verification_agent.execute(
-            rtl_design
+            requirement_spec,
+            rtl_design,
         )
 
         return (

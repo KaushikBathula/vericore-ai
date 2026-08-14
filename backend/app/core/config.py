@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     )
 
     api_prefix: str = Field(
-        default="",
+        default="/api",
         alias="API_PREFIX",
     )
 
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
 
     ollama_base_url: str = Field(
-        default="http://localhost:11434",
+        default="http://127.0.0.1:11434",
         alias="OLLAMA_BASE_URL",
     )
 

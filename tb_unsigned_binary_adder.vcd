@@ -1,0 +1,38 @@
+$date
+	Thu Jul 30 21:39:34 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb_unsigned_binary_adder $end
+$var wire 1 ! CARRY $end
+$var wire 2 " SUM [1:0] $end
+$var reg 2 # A [1:0] $end
+$var reg 2 $ B [1:0] $end
+$scope module dut $end
+$var wire 2 % A [1:0] $end
+$var wire 2 & B [1:0] $end
+$var wire 1 ! CARRY $end
+$var wire 2 ' SUM [1:0] $end
+$var parameter 32 ( WIDTH $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b10 (
+$end
+#0
+$dumpvars
+bz '
+b0 &
+b0 %
+b0 $
+b0 #
+bz "
+z!
+$end
+#20

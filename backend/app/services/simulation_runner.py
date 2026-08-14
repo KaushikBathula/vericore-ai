@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from backend.app.core.logging import get_logger
+from backend.app.core.toolchain import resolve_executable
 from backend.app.schemas.simulation_result import SimulationResult
 
 logger = get_logger(__name__)
@@ -59,12 +60,21 @@ class SimulationRunner:
                 f"Testbench file not found: {testbench_file}"
             )
 
+        iverilog = resolve_executable(
+            tool_name="iverilog",
+            stage="Simulation compilation",
+        )
+        vvp = resolve_executable(
+            tool_name="vvp",
+            stage="Simulation runtime",
+        )
+
         compile_command = [
-            "iverilog",
+            iverilog,
             "-o",
-            str(output_file),
-            str(rtl_file),
-            str(testbench_file),
+            str(output_file.resolve()),
+            str(rtl_file.resolve()),
+            str(testbench_file.resolve()),
         ]
 
         logger.info("Compiling RTL using Icarus Verilog.")
@@ -75,10 +85,18 @@ class SimulationRunner:
             compile_command,
             capture_output=True,
             text=True,
+            cwd=working_directory,
         )
 
         if compile_process.returncode != 0:
             elapsed = time.perf_counter() - start_time
+
+            print("\n========== IVERILOG COMPILATION ERROR ==========\n")
+            print("STDOUT:")
+            print(compile_process.stdout)
+            print("\nSTDERR:")
+            print(compile_process.stderr)
+            print("\n===============================================\n")
 
             logger.error("Compilation failed.")
 
@@ -98,11 +116,12 @@ class SimulationRunner:
 
         simulation_process = subprocess.run(
             [
-                "vvp",
-                str(output_file),
+                vvp,
+                str(output_file.resolve()),
             ],
             capture_output=True,
             text=True,
+            cwd=working_directory,
         )
 
         elapsed = time.perf_counter() - start_time

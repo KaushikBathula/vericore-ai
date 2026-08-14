@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class TestVector(BaseModel):
+    __test__ = False
     """
     Represents one verification test vector.
     """
@@ -39,5 +40,5 @@ class TestVector(BaseModel):
     delay: int = Field(
         default=10,
         ge=0,
-        description="Simulation delay after applying inputs (ns).",
+        description="Simulation delay after applying inputs" \
     )

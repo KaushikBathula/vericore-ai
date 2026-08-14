@@ -59,6 +59,55 @@ class RTLResponseParser:
 
                 normalized_signals.append(signal)
 
+
+        # If the LLM omitted internal signals, derive
+        # implementation signals from the RTL operations.
+        if not normalized_signals:
+
+            output_names = {
+                output.signal_name
+                for output in requirement.outputs
+            }
+
+            for operation in requirement.operations:
+
+                operation_name = operation.operation_name.lower()
+
+                if operation_name == "addition":
+                    signal_name = "addition_result"
+
+                elif operation_name == "subtraction":
+                    signal_name = "subtraction_result"
+
+                else:
+                    signal_name = f"{operation_name}_result"
+
+                # Avoid creating an internal signal that
+                # conflicts with an existing output.
+                if signal_name in output_names:
+                    continue
+
+                # Avoid duplicates.
+                if any(
+                    signal["signal_name"] == signal_name
+                    for signal in normalized_signals
+                ):
+                    continue
+
+                normalized_signals.append(
+                    {
+                        "signal_name": signal_name,
+                        "signal_width": max(
+                            (
+                                output.signal_width
+                                for output in requirement.outputs
+                            ),
+                            default=1,
+                        ),
+                        "signal_type": "wire",
+                    }
+                )      
+
         data["internal_signals"] = normalized_signals
 
         # -----------------------------

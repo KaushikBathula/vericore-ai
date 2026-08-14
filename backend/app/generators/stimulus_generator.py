@@ -74,6 +74,12 @@ class StimulusGenerator(BaseGenerator):
 
             lines.append("    // AI Generated Test Vectors")
             lines.append("")
+            print("\n========== TEST VECTORS ==========")
+            for i, vector in enumerate(verification_plan.test_vectors, start=1):
+                print(f"Vector {i}")
+                print(vector.model_dump())
+            print("==================================\n")
+                
 
             for vector in verification_plan.test_vectors:
 

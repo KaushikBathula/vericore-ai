@@ -7,32 +7,32 @@ Return ONLY valid JSON.
 The JSON MUST exactly follow this schema:
 
 {
-  "module_name": "",
-  "description": "",
-  "inputs": [
-    {
-      "signal_name": "",
-      "signal_width": 1,
-      "signal_type": "input",
-      "direction": "input"
-    }
-  ],
-  "outputs": [
-    {
-      "signal_name": "",
-      "signal_width": 1,
-      "signal_type": "output",
-      "direction": "output"
-    }
-  ],
-  "operations": [
-    {
-      "operation_name": "",
-      "description": ""
-    }
-  ],
-  "parameters": {},
-  "verification_points": []
+"module_name": "",
+"description": "",
+"inputs": [
+{
+"signal_name": "",
+"signal_width": 1,
+"signal_type": "input",
+"direction": "input"
+}
+],
+"outputs": [
+{
+"signal_name": "",
+"signal_width": 1,
+"signal_type": "output",
+"direction": "output"
+}
+],
+"operations": [
+{
+"operation_name": "",
+"description": ""
+}
+],
+"parameters": {},
+"verification_points": []
 }
 
 Rules:
@@ -43,7 +43,7 @@ Rules:
 4. Do NOT return code fences.
 5. Do NOT return any text before or after the JSON.
 6. Use double quotes for every string.
-7. Escape quotes inside strings using \".
+7. Escape quotes inside strings using ".
 8. Never use single quotes.
 9. Never use Python dictionaries.
 10. Never use hexadecimal literals.
@@ -52,38 +52,125 @@ Rules:
 13. Never generate fields that are not in the schema.
 14. Never generate "condition", "expression", "logic", "RTL", or Verilog code.
 15. Keep every description in plain English.
-16. If information is missing, leave arrays empty or add a short plain-English note inside verification_points.
-17. Do not invent hardware requirements.
+16. Do not invent hardware requirements.
+17. Required fields must never be empty when the information can be inferred from the user's requirement.
+
+Module Name Rules:
+
+* module_name MUST be a valid, non-empty Verilog identifier.
+* Never return an empty string for module_name.
+* If the user explicitly provides a module name, preserve it.
+* If the user does not explicitly provide a module name, infer a concise module name from the requested hardware function.
+* Use PascalCase for inferred module names.
+* Examples:
+
+  * "2-bit unsigned binary adder" → "TwoBitAdder"
+  * "4-bit comparator" → "FourBitComparator"
+  * "8-bit multiplexer" → "EightBitMultiplexer"
+* Do NOT include spaces, brackets, punctuation, or bus ranges in module_name.
+
+Description Rules:
+
+* description MUST be a concise, non-empty plain-English description of the requested hardware.
+* Summarize the actual hardware requested by the user.
+* Do not invent functionality.
 
 Input/Output Rules:
 
-- Inputs must have:
-  - signal_name
-  - signal_width
-  - signal_type
-  - direction
+* Inputs must have:
 
-- Outputs must have:
-  - signal_name
-  - signal_width
-  - signal_type
-  - direction
+  * signal_name
+  * signal_width
+  * signal_type
+  * direction
+
+* Outputs must have:
+
+  * signal_name
+  * signal_width
+  * signal_type
+  * direction
+
+* Preserve the user's interface exactly.
+
+* Never invent additional inputs or outputs.
+
+* Never remove explicitly specified inputs or outputs.
+
+Signal Preservation Rules:
+
+* Preserve the user's interface exactly.
+* Never split a multi-bit signal into individual bits.
+* If the requirement specifies a 2-bit input A, generate:
+
+{
+"signal_name": "A",
+"signal_width": 2
+}
+
+NOT:
+
+A0
+A1
+
+* Never rename signals.
+* Never append indexes such as [1:0] to signal_name.
+* signal_name must contain only the identifier.
+
+Correct:
+
+{
+"signal_name": "A",
+"signal_width": 2
+}
+
+Incorrect:
+
+{
+"signal_name": "A[1:0]",
+"signal_width": 2
+}
+
+Incorrect:
+
+{
+"signal_name": "A0",
+"signal_width": 1
+},
+{
+"signal_name": "A1",
+"signal_width": 1
+}
+
+The signal width alone represents the bus width.
+
+Signal Width Rules:
+
+* Preserve explicitly specified widths exactly.
+* A signal written as A[1:0] has signal_width = 2.
+* A signal written as A[3:0] has signal_width = 4.
+* A signal with no range and no specified width has signal_width = 1.
+* signal_width must be a positive integer.
+* Do not change a declared width based on assumptions.
 
 Operation Rules:
 
 Each operation must contain ONLY:
 
 {
-  "operation_name": "",
-  "description": ""
+"operation_name": "",
+"description": ""
 }
 
 Example:
 
 {
-  "operation_name": "addition",
-  "description": "Adds input A and input B and stores the result in the output."
+"operation_name": "addition",
+"description": "Adds input A and input B and produces the result at the output."
 }
+
+* operation_name must describe the actual requested operation.
+* Do not invent operations that are not implied by the requirement.
 
 Verification Rules:
 
@@ -92,14 +179,25 @@ verification_points must be an array of plain-English strings or an empty array.
 Good:
 
 "verification_points": [
-  "Verify addition operation.",
-  "Verify subtraction operation."
+"Verify the addition operation.",
+"Verify the SUM and CARRY outputs for valid input combinations."
 ]
 
 Bad:
 
 {
-  "condition": "operation == \"0010\""
+"condition": "operation == "0010""
 }
+
+* Verification points must describe what should be verified.
+* Do not include Verilog code.
+* Do not include expressions or executable assertions.
+
+Missing Information Rules:
+
+* Do not invent hardware requirements.
+* If an optional piece of information is genuinely unavailable, use an empty array or empty object where the schema permits it.
+* module_name and description are exceptions: they must be inferred when reasonably possible.
+* For an operation, infer the operation from clear natural-language descriptions such as "add", "subtract", "multiply", "compare", "shift", etc.
 
 Return ONLY the JSON object.

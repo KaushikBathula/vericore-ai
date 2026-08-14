@@ -52,3 +52,4 @@ class RequirementAgent(BaseAgent):
         logger.info("Requirement extraction completed successfully.")
 
         return specification
+    

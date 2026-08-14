@@ -26,6 +26,7 @@ class CodeGenerationService:
     def generate(
         self,
         rtl_design: RTLDesign,
+        verification_plan=None,
     ) -> tuple[str, str]:
         """
         Generate Verilog RTL and a Verilog testbench.
@@ -46,7 +47,9 @@ class CodeGenerationService:
         )
 
         testbench_source = self.testbench_generator.generate(
-            rtl_design
+            rtl_design,
+            verification_plan,
+            
         )
 
         return (

@@ -1,0 +1,11 @@
+read_verilog C:\Users\kaush.KAUSHIK\Documents\Codex\2026-07-09\vericore-ai\test.v
+hierarchy -check -top test
+proc
+opt
+fsm
+memory
+opt
+techmap
+opt
+stat
+write_verilog C:\Users\kaush.KAUSHIK\Documents\Codex\2026-07-09\vericore-ai\test_netlist.v

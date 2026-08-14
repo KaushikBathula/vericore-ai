@@ -17,6 +17,8 @@ class OllamaProvider(BaseLLMProvider):
         self.model = self.settings.ollama_model
         self.timeout = self.settings.ollama_timeout
         self.temperature = self.settings.ollama_temperature
+        print("Loaded Base URL:", self.base_url)
+        print("Loaded Model:", self.model)
 
     def generate(
         self,
@@ -36,7 +38,9 @@ class OllamaProvider(BaseLLMProvider):
         }
 
         try:
-
+            print("=" * 60)
+            print("OLLAMA URL:", f"{self.base_url}/api/generate")
+            print("=" * 60)
             response = httpx.post(
                 f"{self.base_url}/api/generate",
                 json=payload,

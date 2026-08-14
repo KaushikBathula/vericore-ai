@@ -53,9 +53,19 @@ class ResponseParser:
             return match.group(1).strip()
 
         return text.strip()
+    
+    @staticmethod
+    def _normalize_signal_name(name: str) -> str:
+        """
+        Convert names like:
+            A[1:0] -> A
+            SUM[7:0] -> SUM
+        """
+        return re.sub(r"\[.*?\]","",name).strip()
 
     @staticmethod
     def _normalize_ports(data: dict[str, Any]) -> None:
+        
         """
         Normalize port directions.
         """
@@ -70,6 +80,14 @@ class ResponseParser:
 
                 elif direction == "out":
                     port["direction"] = "output"
+
+                # Normalize signal name
+                if "signal_name" in port:
+                    port["signal_name"] = (
+                        ResponseParser._normalize_signal_name(
+                            port["signal_name"]
+                        )
+                    )
 
     @staticmethod
     def _normalize_operations(data: dict[str, Any]) -> None:

@@ -1,26 +1,48 @@
 import json
 import re
-from backend.app.utils.json_repair import repair_json
+
 from pydantic import ValidationError
-from backend.app.schemas.test_vector import TestVector
+
+from backend.app.core.parsers.response_parser import ResponseParser
 from backend.app.schemas.verification_plan import VerificationPlan
+from backend.app.utils.json_repair import repair_json
 
 
 class VerificationParser:
     """
     Converts raw LLM verification responses into a validated VerificationPlan.
     """
-
+    
     @staticmethod
     def parse(response: str) -> VerificationPlan:
 
-        cleaned = re.search(r"\{.*\}", response, re.DOTALL)
+        print("\n***** VerificationParser.parse() CALLED *****\n")
 
-        if cleaned:
-            response = cleaned.group(0)
+        response = ResponseParser._strip_markdown(response)
         response = repair_json(response)
 
-        data = json.loads(response)
+        response = re.sub(
+            r"\b0b([01]+)\b",
+            lambda m: str(int(m.group(1), 2)),
+            response,
+        )
+
+        try:
+             data = json.loads(response)
+
+        except json.JSONDecodeError as exc:
+
+            print("\n========== INVALID VERIFICATION JSON ==========\n")
+            print(response)
+            print("\n===============================================\n")
+
+            print(
+                f"JSON error at line {exc.lineno}, "
+                f"column {exc.colno}, "
+                f"character {exc.pos}"
+            )
+
+            raise
 
         # --------------------------------------------------
         # Normalize Test Cases
@@ -69,6 +91,7 @@ class VerificationParser:
             )
 
         data["test_cases"] = normalized_cases
+
         # --------------------------------------------------
         # Normalize Test Vectors
         # --------------------------------------------------
@@ -76,72 +99,102 @@ class VerificationParser:
         normalized_vectors = []
 
         for vector in data.get("test_vectors", []):
-
+            print("\nRAW VECTOR:")
+            print(vector)
+            print(type(vector))
             if not isinstance(vector, dict):
                 continue
 
-            normalized_vectors.append(
-                {
-                    "name": vector.get("name", "Unnamed Vector"),
-                    "description": vector.get("description", ""),
-                    "inputs": vector.get("inputs", {}),
-                    "expected_outputs": vector.get(
-                        "expected_outputs",
-                        {},
-                    ),
-                    "delay": vector.get("delay", 10),
-                }
-            )
+            inputs = vector.get("inputs")
+            expected = vector.get("expected_outputs")
 
-        data["test_vectors"] = normalized_vectors
-        # --------------------------------------------------
-        # Normalize Test Vectors
-        # --------------------------------------------------
+            # Support flat AI output
+            if inputs is None and expected is None:
 
-        normalized_vectors = []
+                inputs = {}
+                expected = {}
 
-        for vector in data.get("test_vectors", []):
+                for key, value in vector.items():
 
-            if isinstance(vector, dict):
+                    upper = key.upper()
+
+                    if upper in {
+                        "A",
+                        "B",
+                        "CLK",
+                        "RST",
+                        "RESET",
+                        "ENABLE",
+                    }:
+                        inputs[key] = value
+
+                    elif upper in {
+                        "SUM",
+                        "CARRY",
+                        "OUT",
+                        "Y",
+                        "Q",
+                    }:
+                        expected[key] = value
+
+            else:
 
                 inputs = (
-                    vector.get("inputs")
+                    inputs
                     or vector.get("stimulus")
                     or {}
                 )
 
                 expected = (
-                    vector.get("expected_outputs")
+                    expected
                     or vector.get("expected_result")
                     or vector.get("expected")
                     or {}
                 )
 
-                if not isinstance(inputs, dict):
-                    inputs = {}
+            if not isinstance(inputs, dict):
+                inputs = {}
 
-                if not isinstance(expected, dict):
-                    expected = {}
+            if not isinstance(expected, dict):
+                expected = {}
 
-                normalized_vectors.append(
-                    {
-                        "name": vector.get(
-                            "name",
-                            "Unnamed Vector",
-                        ),
-                        "description": vector.get(
-                            "description",
-                            "",
-                        ),
-                        "inputs": inputs,
-                        "expected_outputs": expected,
-                        "delay": int(
-                            vector.get("delay", 10)
-                        ),
-                    }
-                )
+            inputs = {
+                k: v
+                for k, v in inputs.items()
+                if v is not None
+            }
+
+            expected = {
+                k: v
+                for k, v in expected.items()
+                if v is not None
+            }
+            print("Inputs:", inputs)
+            print("Expected Outputs:", expected)
+            normalized_vectors.append(
+                {
+                    "name": vector.get(
+                        "name",
+                        "Unnamed Vector",
+                    ),
+                    "description": vector.get(
+                        "description",
+                        "",
+                    ),
+                    "inputs": inputs,
+                    "expected_outputs": expected,
+                    "delay": int(
+                        vector.get("delay", 10)
+                    ),
+                }
+            )
 
         data["test_vectors"] = normalized_vectors
+
+        # --------------------------------------------------
+        # Generate vectors if only test cases exist
+        # --------------------------------------------------
+
         if (
             not data["test_vectors"]
             and data.get("test_cases")
@@ -162,6 +215,14 @@ class VerificationParser:
                 )
 
             data["test_vectors"] = generated_vectors
+
+        print("\n========== PARSED TEST VECTORS ==========\n")
+
+        for vector in data["test_vectors"]:
+            print(vector)
+
+        print("\n=========================================\n")
+
         # --------------------------------------------------
         # Normalize Assertions
         # --------------------------------------------------

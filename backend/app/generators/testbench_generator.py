@@ -21,6 +21,7 @@ from backend.app.schemas.rtl_design import RTLDesign
 
 
 class TestbenchGenerator:
+    __test__ = False
     """
     Generates a complete Verilog testbench by orchestrating
     specialized generator components.

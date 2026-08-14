@@ -20,6 +20,18 @@ class VerilogGenerator(HDLGenerator):
 
         ports = []
 
+        print("\n========== PORT DEBUG ==========")
+
+        print("\nInputs:")
+        for port in rtl_design.requirement.inputs:
+            print(port.model_dump())
+
+        print("\nOutputs:")
+        for port in rtl_design.requirement.outputs:
+            print(port.model_dump())
+
+        print("\n================================\n")
+
         for port in rtl_design.requirement.inputs:
             ports.append(
                 "    "
@@ -60,27 +72,41 @@ class VerilogGenerator(HDLGenerator):
         return "\n".join(declarations)
 
     def _find_operator(self, operation_name: str) -> str | None:
+        """
+        Determine the Verilog operator corresponding to an operation name.
+        Supports multiple naming conventions returned by different LLMs.
+        """
 
         name = operation_name.lower()
 
-        mapping = {
-            "addition": "+",
-            "add": "+",
-            "subtraction": "-",
-            "subtract": "-",
-            "sub": "-",
-            "and": "&",
-            "or": "|",
-            "xor": "^",
-        }
+        if "add" in name:
+            return "+"
 
-        return mapping.get(name)
+        if "sub" in name:
+            return "-"
+
+        if "xor" in name:
+            return "^"
+
+        if "and" in name:
+            return "&"
+
+        # Check OR after XOR so "xor" isn't matched as "or"
+        if name == "or" or name.endswith("_or") or " or " in name:
+            return "|"
+
+        return None
 
     def _generate_logic(self, rtl_design: RTLDesign) -> str:
+        print("\n========== RTL LOGIC DEBUG ==========")
+        print("Inputs :", rtl_design.requirement.inputs)
+        print("Outputs:", rtl_design.requirement.outputs)
+        print("Operations:", rtl_design.requirement.operations)
+        print("=====================================\n")
         """
         Generate RTL logic.
         """
-
+        
         if (
             len(rtl_design.requirement.inputs) < 2
             or len(rtl_design.requirement.outputs) < 1
@@ -91,11 +117,18 @@ class VerilogGenerator(HDLGenerator):
         a = rtl_design.requirement.inputs[0].signal_name
         b = rtl_design.requirement.inputs[1].signal_name
         out = rtl_design.requirement.outputs[0].signal_name
-
+        carry = (
+            rtl_design.requirement.outputs[1].signal_name
+            if len(rtl_design.requirement.outputs) > 1
+            else None
+        )
         assign_statements = []
         comb_statements = []
 
         for operation in rtl_design.requirement.operations:
+            print("Operation:", operation)
+            print("Operation name:", operation.operation_name)
+            print("Mapped operator:", self._find_operator(operation.operation_name))
 
             # Backward-compatible destination
             destination = getattr(
@@ -122,7 +155,27 @@ class VerilogGenerator(HDLGenerator):
                     continue
 
                 expression = f"{a} {operator} {b}"
+            # Special handling for adders
+            if "add" in operation.operation_name.lower():
 
+                sum_signal = rtl_design.requirement.outputs[0].signal_name
+                carry_signal = None
+
+            for port in rtl_design.requirement.outputs:
+                    if port.signal_name.upper() == "CARRY":
+                        carry_signal = port.signal_name
+                        break
+
+            if carry_signal:
+                    assign_statements.append(
+                        f"    assign {{{carry_signal}, {sum_signal}}} = {a} + {b};"
+                    )
+            else:
+                    assign_statements.append(
+                        f"    assign {sum_signal} = {a} + {b};"
+                    )
+
+            continue
             # Backward-compatible implementation style
             implementation_style = getattr(
                 operation,
@@ -162,7 +215,9 @@ class VerilogGenerator(HDLGenerator):
             logic.append(
                 "    // Unsupported operation"
             )
-
+        print("\n========== GENERATED LOGIC ==========")
+        print(logic)
+        print("=====================================\n")
         return "\n\n".join(logic)
 
     def generate(self, rtl_design: RTLDesign) -> str:
@@ -220,7 +275,11 @@ class VerilogGenerator(HDLGenerator):
             rtl_design
         )
 
-        return (
+        print("\n========== RTL SOURCE ==========")
+        print(rtl_logic)
+        print("================================\n")
+
+        generated_code = (
             f"{module_header} (\n"
             f"{port_declarations}\n"
             f");\n\n"
@@ -228,3 +287,9 @@ class VerilogGenerator(HDLGenerator):
             f"{rtl_logic}\n\n"
             f"endmodule\n"
         )
+
+        print("\n========== COMPLETE GENERATED VERILOG ==========\n")
+        print(generated_code)
+        print("\n================================================\n")
+
+        return generated_code
