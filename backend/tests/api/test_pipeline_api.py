@@ -15,6 +15,10 @@ def test_pipeline_api_success():
     fake_report = MagicMock()
     fake_report.success = True
 
+    # The API now builds the report path from the generated
+    # module name in the DocumentationReport.
+    fake_report.requirement_spec.module_name = "TwoBitAdder"
+
     with patch(
         "backend.app.api.pipeline.PipelineService"
     ) as mock_service_class:
@@ -39,7 +43,10 @@ def test_pipeline_api_success():
     data = response.json()
 
     assert data["success"] is True
-    assert data["report_path"] == "generated_projects"
+    assert (
+        data["report_path"]
+        == "generated_projects/TwoBitAdder/documentation/report.md"
+    )
     assert data["message"] == "Pipeline executed successfully."
 
     mock_service_class.assert_called_once()

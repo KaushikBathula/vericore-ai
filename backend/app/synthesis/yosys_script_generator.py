@@ -19,6 +19,7 @@ class YosysScriptGenerator:
         rtl_file: Path,
         top_module: str,
         netlist_file: Path,
+        schematic_dot_file: Path,
     ) -> str:
         """
         Generate a Yosys synthesis script.
@@ -39,7 +40,6 @@ class YosysScriptGenerator:
         str
             Complete Yosys script.
         """
-
         return "\n".join(
             [
                 f"read_verilog {rtl_file}",
@@ -53,5 +53,6 @@ class YosysScriptGenerator:
                 "opt",
                 "stat",
                 f"write_verilog {netlist_file}",
+                f"show -format dot -prefix {schematic_dot_file.with_suffix('')}",
             ]
         )

@@ -285,6 +285,15 @@ class VerificationAgent:
                     )
                 )
 
+            elif operation == "unsigned_comparison":
+
+                expected_outputs = (
+                    self._calculate_comparison_outputs(
+                        inputs=normalized_inputs,
+                        output_widths=output_widths,
+                    )
+                )
+
             else:
 
                 expected_outputs = (
@@ -332,7 +341,7 @@ class VerificationAgent:
 
         # ---------------------------------------------------------
         # 7. Generate exhaustive vectors for small unsigned
-        #    addition designs.
+        #    combinational operations.
         # ---------------------------------------------------------
 
         if operation == "unsigned_addition":
@@ -349,6 +358,26 @@ class VerificationAgent:
                 logger.info(
                     "Using deterministic exhaustive verification "
                     "for unsigned addition."
+                )
+
+                normalized_vectors = (
+                    exhaustive_vectors
+                )
+
+        elif operation == "unsigned_comparison":
+
+            exhaustive_vectors = (
+                self._generate_exhaustive_comparison_vectors(
+                    input_widths=input_widths,
+                    output_widths=output_widths,
+                )
+            )
+
+            if exhaustive_vectors:
+
+                logger.info(
+                    "Using deterministic exhaustive verification "
+                    "for unsigned comparison."
                 )
 
                 normalized_vectors = (
@@ -456,6 +485,32 @@ class VerificationAgent:
             ):
                 return "unsigned_addition"
 
+        # ---------------------------------------------------------
+        # Unsigned comparison
+        # ---------------------------------------------------------
+
+        comparison_patterns = [
+            r"\bcompar(?:e|ator|ing|ison)\b",
+            r"\bgreater than\b",
+            r"\bless than\b",
+            r"\bequal(?:s|ity)?\b",
+            r"\bGT\b",
+            r"\bLT\b",
+            r"\bEQ\b",
+            r"\ba\s*>\s*b\b",
+            r"\ba\s*<\s*b\b",
+            r"\ba\s*==\s*b\b",
+        ]
+
+        for pattern in comparison_patterns:
+
+            if re.search(
+                pattern,
+                text,
+                flags=re.IGNORECASE,
+            ):
+                return "unsigned_comparison"
+
         return None
 
     # =============================================================
@@ -530,11 +585,7 @@ class VerificationAgent:
 
             sum_width = output_widths.get(
                 "SUM",
-                max(
-                    input_widths
-                    if False
-                    else [1]
-                ),
+                max(1, len(inputs)),
             )
 
             if sum_width > 0:
@@ -682,6 +733,174 @@ class VerificationAgent:
                     TestVector(
                         name=(
                             f"Addition Test "
+                            f"A={a}, B={b}"
+                        ),
+                        description=description,
+                        inputs={
+                            "A": a,
+                            "B": b,
+                        },
+                        expected_outputs=(
+                            expected_outputs
+                        ),
+                        delay=10,
+                    )
+                )
+
+        return vectors
+
+    # =============================================================
+    # COMPARISON OUTPUT CALCULATION
+    # =============================================================
+
+    def _calculate_comparison_outputs(
+        self,
+        inputs: dict[str, int],
+        output_widths: dict[str, int],
+    ) -> dict[str, int]:
+
+        """
+        Calculate deterministic expected outputs for
+        an unsigned two-operand comparison.
+
+        GT = 1 when A > B
+        LT = 1 when A < B
+        EQ = 1 when A == B
+
+        Only explicitly declared outputs are returned.
+        """
+
+        if not inputs:
+            return {}
+
+        # ---------------------------------------------------------
+        # Identify operands.
+        #
+        # The current project convention uses A and B.
+        # If those exist, use them.
+        # ---------------------------------------------------------
+
+        if "A" in inputs and "B" in inputs:
+
+            a = int(inputs["A"])
+            b = int(inputs["B"])
+
+        else:
+
+            values = list(inputs.values())
+
+            if len(values) < 2:
+                return {}
+
+            a = int(values[0])
+            b = int(values[1])
+
+        expected_outputs: dict[str, int] = {}
+
+        # ---------------------------------------------------------
+        # Greater-than result
+        # ---------------------------------------------------------
+
+        if "GT" in output_widths:
+
+            expected_outputs["GT"] = int(a > b)
+
+        # ---------------------------------------------------------
+        # Less-than result
+        # ---------------------------------------------------------
+
+        if "LT" in output_widths:
+
+            expected_outputs["LT"] = int(a < b)
+
+        # ---------------------------------------------------------
+        # Equality result
+        # ---------------------------------------------------------
+
+        if "EQ" in output_widths:
+
+            expected_outputs["EQ"] = int(a == b)
+
+        return expected_outputs
+
+    # =============================================================
+    # EXHAUSTIVE COMPARISON VECTORS
+    # =============================================================
+
+    def _generate_exhaustive_comparison_vectors(
+        self,
+        input_widths: dict[str, int],
+        output_widths: dict[str, int],
+    ) -> list[TestVector]:
+
+        """
+        Generate exhaustive vectors for a small unsigned
+        two-operand comparison.
+
+        For a 4-bit comparator:
+
+            A ∈ {0,...,15}
+            B ∈ {0,...,15}
+
+        Therefore:
+
+            16 × 16 = 256 vectors
+        """
+
+        if "A" not in input_widths:
+            return []
+
+        if "B" not in input_widths:
+            return []
+
+        a_width = input_widths["A"]
+        b_width = input_widths["B"]
+
+        if a_width <= 0 or b_width <= 0:
+            return []
+
+        a_count = 2 ** a_width
+        b_count = 2 ** b_width
+
+        total_vectors = a_count * b_count
+
+        # Prevent accidental explosion for large designs.
+        if total_vectors > 256:
+            logger.info(
+                "Skipping exhaustive comparison generation: "
+                "%d vectors would be required.",
+                total_vectors,
+            )
+            return []
+
+        vectors: list[TestVector] = []
+
+        for a in range(a_count):
+
+            for b in range(b_count):
+
+                expected_outputs = (
+                    self._calculate_comparison_outputs(
+                        inputs={
+                            "A": a,
+                            "B": b,
+                        },
+                        output_widths=output_widths,
+                    )
+                )
+
+                description = (
+                    f"Verify unsigned comparison for "
+                    f"A={a}, B={b}. "
+                    f"Expected GT={expected_outputs.get('GT', 0)}, "
+                    f"LT={expected_outputs.get('LT', 0)}, "
+                    f"EQ={expected_outputs.get('EQ', 0)}."
+                )
+
+                vectors.append(
+                    TestVector(
+                        name=(
+                            f"Comparison Test "
                             f"A={a}, B={b}"
                         ),
                         description=description,

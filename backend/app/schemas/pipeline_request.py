@@ -1,3 +1,7 @@
+"""
+Schema for Pipeline API requests.
+"""
+
 from pydantic import BaseModel, Field
 
 
@@ -8,5 +12,6 @@ class PipelineRequest(BaseModel):
 
     requirement: str = Field(
         ...,
-        description="Natural language hardware specification.",
+        min_length=1,
+        description="Natural-language hardware specification.",
     )

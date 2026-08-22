@@ -87,6 +87,3 @@ class DocumentationReport(BaseModel):
         default=True,
         description="Overall pipeline success.",
     )
-    post_synthesis_simulation_result=(
-    post_synthesis_simulation_result
-),

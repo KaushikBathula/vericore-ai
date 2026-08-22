@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { usePipeline } from "@/context/PipelineContext";
 import { RequirementsService } from "@/services/requirements.service";
 
 export default function RequirementForm() {
+  const router = useRouter();
+  const { setLatestPipelineResult } = usePipeline();
   const [projectName, setProjectName] = useState("");
   const [requirement, setRequirement] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -12,16 +16,29 @@ export default function RequirementForm() {
 
   const handleGenerateRTL = async () => {
     console.log("Generate button clicked");
+
+    if (!requirement.trim()) {
+      setError("Enter a hardware requirement before running the pipeline.");
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setError("");
 
-      await RequirementsService.generateRTL({
-        requirement,
+      const response = await RequirementsService.generateRTL({
+        requirement: requirement.trim(),
       });
+
+      setLatestPipelineResult(response);
+      router.push("/pipeline");
     } catch (error) {
       console.error(error);
-      setError("Failed to start RTL generation pipeline.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to start RTL generation pipeline.",
+      );
     } finally {
       setIsGenerating(false);
     }

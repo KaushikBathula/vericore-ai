@@ -13,24 +13,12 @@ from backend.app.agents.requirement_agent import RequirementAgent
 from backend.app.agents.rtl_agent import RTLAgent
 from backend.app.agents.verification_agent import VerificationAgent
 from backend.app.schemas.documentation_report import DocumentationReport
-from backend.app.services.code_generation_service import (
-    CodeGenerationService,
-)
-from backend.app.services.documentation_service import (
-    DocumentationService,
-)
-from backend.app.services.simulation_service import (
-    SimulationService,
-)
-from backend.app.services.synthesis_service import (
-    SynthesisService,
-)
-from backend.app.services.artifact_service import (
-    ArtifactService,
-)
-from backend.app.services.rtl_repair_service import (
-    RTLRepairService,
-)
+from backend.app.services.artifact_service import ArtifactService
+from backend.app.services.code_generation_service import CodeGenerationService
+from backend.app.services.documentation_service import DocumentationService
+from backend.app.services.rtl_repair_service import RTLRepairService
+from backend.app.services.simulation_service import SimulationService
+from backend.app.services.synthesis_service import SynthesisService
 
 
 class PipelineService:
@@ -42,13 +30,16 @@ class PipelineService:
         self.requirement_agent = RequirementAgent()
         self.rtl_agent = RTLAgent()
         self.verification_agent = VerificationAgent()
+
         self.artifact_service = ArtifactService()
         self.code_generation_service = CodeGenerationService()
         self.simulation_service = SimulationService()
         self.synthesis_service = SynthesisService()
         self.documentation_service = DocumentationService()
+
         self.rtl_repair_service = RTLRepairService()
         self.debug_agent = DebugAgent()
+
         self.max_debug_iterations = 3
 
     def execute(
@@ -58,6 +49,7 @@ class PipelineService:
     ) -> DocumentationReport:
         """
         Execute the complete VeriCore AI pipeline.
+
         Parameters
         ----------
         requirement_text:
@@ -71,65 +63,80 @@ class PipelineService:
         DocumentationReport
             Complete pipeline result.
         """
+
         print("\n########################################")
         print("### NEW PIPELINE SERVICE IS RUNNING ###")
         print("########################################\n")
+
         # ----------------------------------------
         # Requirement Analysis
         # ----------------------------------------
+
         print("STEP 1: Before RequirementAgent")
+
         requirement_spec = self.requirement_agent.execute(
-        
             requirement_text
         )
+
         print("STEP 2: After RequirementAgent")
 
         # ----------------------------------------
         # RTL Generation
         # ----------------------------------------
+
         print("STEP 3: Before RTLAgent")
 
         rtl_design = self.rtl_agent.execute(
             requirement_spec
         )
+
         print("STEP 4: After RTLAgent")
         print("\nRTL FINISHED\n")
 
         # ----------------------------------------
         # Verification Planning
         # ----------------------------------------
+
         print("\nABOUT TO CALL VERIFICATION AGENT\n")
         print("STEP 5: Before VerificationAgent")
+
         verification_plan = self.verification_agent.execute(
             requirement_spec,
             rtl_design,
         )
+
         print("STEP 6: After VerificationAgent")
         print("\nVERIFICATION AGENT RETURNED\n")
+
         # ----------------------------------------
         # HDL Generation
         # ----------------------------------------
+
         print("STEP 7: Before CodeGeneration")
+
         rtl_source, testbench_source = (
             self.code_generation_service.generate(
                 rtl_design,
                 verification_plan,
             )
-        
         )
+
         print("STEP 8: After CodeGeneration")
+
         # ----------------------------------------
         # Create Project Artifacts
         # ----------------------------------------
-   
+
         project_paths = self.artifact_service.create_project(
             requirement_spec.module_name
         )
+
         rtl_file = self.artifact_service.save_rtl(
             rtl_directory=project_paths["rtl"],
             module_name=requirement_spec.module_name,
             rtl_source=rtl_source,
         )
+
         testbench_file = self.artifact_service.save_testbench(
             testbench_directory=project_paths["testbench"],
             module_name=requirement_spec.module_name,
@@ -137,16 +144,29 @@ class PipelineService:
         )
 
         # ----------------------------------------
-        # Simulation
+        # Pipeline State
         # ----------------------------------------
 
         simulation_result = None
         synthesis_result = None
         post_synthesis_simulation_result = None
-
         debug_report = None
 
+        # ----------------------------------------
+        # Simulation → Synthesis → Post-Synthesis
+        # Debug / Repair Loop
+        # ----------------------------------------
+
         for attempt in range(self.max_debug_iterations):
+
+            print(
+                f"\n========== PIPELINE ITERATION "
+                f"{attempt + 1}/{self.max_debug_iterations} =========="
+            )
+
+            # ----------------------------------------
+            # RTL Simulation
+            # ----------------------------------------
 
             simulation_result = (
                 self.simulation_service.simulate(
@@ -156,31 +176,49 @@ class PipelineService:
                 )
             )
 
+            # ----------------------------------------
+            # Simulation Failure → Debug / Repair
+            # ----------------------------------------
+
             if not simulation_result.simulation_success:
+
+                print("Simulation failed. Starting debug/repair.")
+
                 debug_report = self.debug_agent.execute(
                     simulation_result
                 )
+
                 rtl_design = self.rtl_repair_service.repair(
                     requirement_spec=requirement_spec,
                     debug_report=debug_report,
                 )
+
                 rtl_source, testbench_source = (
                     self.code_generation_service.generate(
                         rtl_design,
                         verification_plan,
                     )
                 )
+
                 rtl_file = self.artifact_service.save_rtl(
                     rtl_directory=project_paths["rtl"],
                     module_name=requirement_spec.module_name,
                     rtl_source=rtl_source,
                 )
+
                 testbench_file = self.artifact_service.save_testbench(
                     testbench_directory=project_paths["testbench"],
                     module_name=requirement_spec.module_name,
                     testbench_source=testbench_source,
                 )
+
                 continue
+
+            print("RTL simulation succeeded.")
+
+            # ----------------------------------------
+            # RTL Synthesis
+            # ----------------------------------------
 
             synthesis_result = self.synthesis_service.synthesize(
                 rtl_source=rtl_source,
@@ -193,6 +231,9 @@ class PipelineService:
             # ----------------------------------------
 
             if not synthesis_result.synthesis_success:
+
+                print("Synthesis failed. Starting debug/repair.")
+
                 debug_report = self.debug_agent.execute(
                     simulation_result
                 )
@@ -223,13 +264,16 @@ class PipelineService:
 
                 continue
 
+            print("RTL synthesis succeeded.")
+
             # ----------------------------------------
-            # Post-Synthesis Simulation
+            # Validate Synthesized Netlist
             # ----------------------------------------
 
             if synthesis_result.netlist_path is None:
                 raise RuntimeError(
-                    "Synthesis reported success but no synthesized netlist was produced."
+                    "Synthesis reported success but no synthesized "
+                    "netlist was produced."
                 )
 
             netlist_file = Path(
@@ -241,6 +285,10 @@ class PipelineService:
                     f"Synthesized netlist not found: {netlist_file}"
                 )
 
+            # ----------------------------------------
+            # Post-Synthesis Simulation
+            # ----------------------------------------
+
             post_synthesis_simulation_result = (
                 self.simulation_service.simulate(
                     rtl_file=netlist_file,
@@ -249,12 +297,12 @@ class PipelineService:
                 )
             )
 
+            print("Post-synthesis simulation completed.")
+
             break
 
-            
-
         # ----------------------------------------
-        # Documentation Object
+        # Build Documentation Report
         # ----------------------------------------
 
         report = self._build_report(
@@ -271,6 +319,7 @@ class PipelineService:
             ),
             debug_report=debug_report,
         )
+
         # ----------------------------------------
         # Save Documentation
         # ----------------------------------------
@@ -282,22 +331,22 @@ class PipelineService:
 
         return report
 
-        def _build_report(
-            self,
-            requirement_text: str,
-            requirement_spec,
-            rtl_design,
-            verification_plan,
-            rtl_source: str,
-            testbench_source: str,
-            simulation_result,
-            synthesis_result,
-            post_synthesis_simulation_result,
-            debug_report=None,
-        ) -> DocumentationReport:
-            """
-            Build the final documentation report.
-            """
+    def _build_report(
+        self,
+        requirement_text: str,
+        requirement_spec,
+        rtl_design,
+        verification_plan,
+        rtl_source: str,
+        testbench_source: str,
+        simulation_result,
+        synthesis_result,
+        post_synthesis_simulation_result,
+        debug_report=None,
+    ) -> DocumentationReport:
+        """
+        Build the final DocumentationReport.
+        """
 
         return DocumentationReport(
             requirement_text=requirement_text,

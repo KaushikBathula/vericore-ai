@@ -30,3 +30,5 @@ Thumbs.db
 
 # Python
 *.egg-info/
+*.vcd
+.tmp_pytest/

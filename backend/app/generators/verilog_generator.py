@@ -1,6 +1,10 @@
 """
 Verilog HDL generator.
+
+Generates synthesizable Verilog from an RTLDesign.
 """
+
+from __future__ import annotations
 
 from backend.app.generators.base import HDLGenerator
 from backend.app.generators.formatter import VerilogFormatter
@@ -71,18 +75,21 @@ class VerilogGenerator(HDLGenerator):
 
         return "\n".join(declarations)
 
-    def _find_operator(self, operation_name: str) -> str | None:
+    def _find_operator(
+        self,
+        operation_name: str,
+    ) -> str | None:
         """
-        Determine the Verilog operator corresponding to an operation name.
-        Supports multiple naming conventions returned by different LLMs.
+        Determine the Verilog operator corresponding to
+        an operation name.
         """
 
-        name = operation_name.lower()
+        name = operation_name.lower().strip()
 
-        if "add" in name:
+        if "add" in name or "addition" in name:
             return "+"
 
-        if "sub" in name:
+        if "sub" in name or "subtract" in name:
             return "-"
 
         if "xor" in name:
@@ -91,102 +98,410 @@ class VerilogGenerator(HDLGenerator):
         if "and" in name:
             return "&"
 
-        # Check OR after XOR so "xor" isn't matched as "or"
-        if name == "or" or name.endswith("_or") or " or " in name:
+        if (
+            name == "or"
+            or name.endswith("_or")
+            or " or " in name
+        ):
             return "|"
 
         return None
 
-    def _generate_logic(self, rtl_design: RTLDesign) -> str:
-        print("\n========== RTL LOGIC DEBUG ==========")
-        print("Inputs :", rtl_design.requirement.inputs)
-        print("Outputs:", rtl_design.requirement.outputs)
-        print("Operations:", rtl_design.requirement.operations)
-        print("=====================================\n")
+    def _find_output(
+        self,
+        rtl_design: RTLDesign,
+        names: list[str],
+    ) -> str | None:
         """
-        Generate RTL logic.
+        Find an output using case-insensitive name matching.
         """
-        
-        if (
-            len(rtl_design.requirement.inputs) < 2
-            or len(rtl_design.requirement.outputs) < 1
-            or not rtl_design.requirement.operations
-        ):
-            return "    // No RTL logic generated"
 
-        a = rtl_design.requirement.inputs[0].signal_name
-        b = rtl_design.requirement.inputs[1].signal_name
-        out = rtl_design.requirement.outputs[0].signal_name
-        carry = (
-            rtl_design.requirement.outputs[1].signal_name
-            if len(rtl_design.requirement.outputs) > 1
-            else None
+        wanted = {
+            name.upper()
+            for name in names
+        }
+
+        for output in rtl_design.requirement.outputs:
+
+            if output.signal_name.upper() in wanted:
+                return output.signal_name
+
+        return None
+
+    def _is_comparator(
+        self,
+        operation_name: str,
+        rtl_design: RTLDesign,
+    ) -> bool:
+        """
+        Determine whether the RTL design represents a comparator.
+
+        Detection is intentionally based on both the operation name
+        and the output interface so that minor LLM wording variations
+        do not prevent comparator generation.
+        """
+
+        name = operation_name.lower().strip()
+
+        comparator_keywords = (
+            "compar",
+            "compare",
+            "comparison",
+            "magnitude",
+            "greater",
+            "less",
+            "equal",
         )
-        assign_statements = []
-        comb_statements = []
 
-        for operation in rtl_design.requirement.operations:
-            print("Operation:", operation)
-            print("Operation name:", operation.operation_name)
-            print("Mapped operator:", self._find_operator(operation.operation_name))
+        if any(
+            keyword in name
+            for keyword in comparator_keywords
+        ):
+            return True
 
-            # Backward-compatible destination
+        output_names = {
+            output.signal_name.upper()
+            for output in rtl_design.requirement.outputs
+        }
+
+        comparator_outputs = {
+            "GT",
+            "LT",
+            "EQ",
+        }
+
+        return comparator_outputs.issubset(
+            output_names
+        )
+
+    def _generate_comparator_logic(
+        self,
+        rtl_design: RTLDesign,
+    ) -> list[str]:
+        """
+        Generate standard magnitude comparator logic.
+
+        GT = 1 when A > B
+        LT = 1 when A < B
+        EQ = 1 when A == B
+        """
+
+        inputs = rtl_design.requirement.inputs
+
+        if len(inputs) < 2:
+            return []
+
+        a = inputs[0].signal_name
+        b = inputs[1].signal_name
+
+        gt_output = self._find_output(
+            rtl_design,
+            [
+                "GT",
+                "GREATER",
+                "GREATER_THAN",
+            ],
+        )
+
+        lt_output = self._find_output(
+            rtl_design,
+            [
+                "LT",
+                "LESS",
+                "LESS_THAN",
+            ],
+        )
+
+        eq_output = self._find_output(
+            rtl_design,
+            [
+                "EQ",
+                "EQUAL",
+                "EQUALS",
+            ],
+        )
+
+        statements = []
+
+        if gt_output is not None:
+            statements.append(
+                f"    assign {gt_output} = {a} > {b};"
+            )
+
+        if lt_output is not None:
+            statements.append(
+                f"    assign {lt_output} = {a} < {b};"
+            )
+
+        if eq_output is not None:
+            statements.append(
+                f"    assign {eq_output} = {a} == {b};"
+            )
+
+        return statements
+
+    def _generate_adder_logic(
+        self,
+        rtl_design: RTLDesign,
+    ) -> list[str]:
+        """
+        Generate adder logic.
+        """
+
+        inputs = rtl_design.requirement.inputs
+        outputs = rtl_design.requirement.outputs
+
+        if len(inputs) < 2 or not outputs:
+            return []
+
+        a = inputs[0].signal_name
+        b = inputs[1].signal_name
+
+        sum_output = outputs[0].signal_name
+
+        carry_output = None
+
+        for output in outputs:
+            if output.signal_name.upper() == "CARRY":
+                carry_output = output.signal_name
+                break
+
+        if carry_output is not None:
+            return [
+                f"    assign {{{carry_output}, {sum_output}}} "
+                f"= {a} + {b};"
+            ]
+
+        return [
+            f"    assign {sum_output} = {a} + {b};"
+        ]
+
+    def _generate_logic(
+        self,
+        rtl_design: RTLDesign,
+    ) -> str:
+        """
+        Generate synthesizable combinational RTL logic.
+        """
+
+        print("\n========== RTL LOGIC DEBUG ==========")
+
+        print(
+            "Inputs:",
+            [
+                port.model_dump()
+                for port in rtl_design.requirement.inputs
+            ],
+        )
+
+        print(
+            "Outputs:",
+            [
+                port.model_dump()
+                for port in rtl_design.requirement.outputs
+            ],
+        )
+
+        print(
+            "Operations:",
+            [
+                operation.model_dump()
+                for operation in rtl_design.requirement.operations
+            ],
+        )
+
+        print("=====================================\n")
+
+        inputs = rtl_design.requirement.inputs
+        outputs = rtl_design.requirement.outputs
+        operations = rtl_design.requirement.operations
+
+        if len(inputs) < 2:
+            return "    // Insufficient inputs for RTL generation"
+
+        if not outputs:
+            return "    // No outputs defined"
+
+        # --------------------------------------------------
+        # IMPORTANT:
+        #
+        # Detect a comparator from the interface itself.
+        #
+        # This prevents the generator from producing an empty
+        # module when the LLM uses an unexpected operation name.
+        # --------------------------------------------------
+
+        output_names = {
+            output.signal_name.upper()
+            for output in outputs
+        }
+
+        has_comparator_interface = {
+            "GT",
+            "LT",
+            "EQ",
+        }.issubset(output_names)
+
+        if has_comparator_interface:
+
+            print(
+                "Comparator interface detected."
+            )
+
+            comparator_logic = (
+                self._generate_comparator_logic(
+                    rtl_design
+                )
+            )
+
+            if comparator_logic:
+
+                print(
+                    "\n========== GENERATED COMPARATOR LOGIC =========="
+                )
+
+                for statement in comparator_logic:
+                    print(statement)
+
+                print(
+                    "=================================================\n"
+                )
+
+                return "\n\n".join(
+                    comparator_logic
+                )
+
+        # --------------------------------------------------
+        # No operations
+        # --------------------------------------------------
+
+        if not operations:
+            return "    // No RTL operations defined"
+
+        a = inputs[0].signal_name
+        b = inputs[1].signal_name
+
+        assign_statements: list[str] = []
+        comb_statements: list[str] = []
+
+        # --------------------------------------------------
+        # Process operations
+        # --------------------------------------------------
+
+        for operation in operations:
+
+            operation_name = (
+                operation.operation_name
+                .lower()
+                .strip()
+            )
+
+            print(
+                "Operation:",
+                operation.model_dump(),
+            )
+
+            print(
+                "Operation name:",
+                operation.operation_name,
+            )
+
+            # --------------------------------------------------
+            # Comparator
+            # --------------------------------------------------
+
+            if self._is_comparator(
+                operation.operation_name,
+                rtl_design,
+            ):
+
+                comparator_logic = (
+                    self._generate_comparator_logic(
+                        rtl_design
+                    )
+                )
+
+                assign_statements.extend(
+                    comparator_logic
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # Adder
+            # --------------------------------------------------
+
+            if (
+                "add" in operation_name
+                or "addition" in operation_name
+            ):
+
+                assign_statements.extend(
+                    self._generate_adder_logic(
+                        rtl_design
+                    )
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # Generic operation handling
+            # --------------------------------------------------
+
             destination = getattr(
                 operation,
                 "destination",
                 None,
-            ) or out
+            )
 
-            # Backward-compatible expression
             expression = getattr(
                 operation,
                 "expression",
                 None,
             )
 
-            # Fallback to operator mapping
-            if not expression:
+            operator = self._find_operator(
+                operation.operation_name
+            )
 
-                operator = self._find_operator(
-                    operation.operation_name
+            if (
+                not expression
+                and operator is not None
+            ):
+                expression = (
+                    f"{a} {operator} {b}"
                 )
 
-                if operator is None:
-                    continue
+            if not expression:
 
-                expression = f"{a} {operator} {b}"
-            # Special handling for adders
-            if "add" in operation.operation_name.lower():
+                print(
+                    "WARNING: Unsupported RTL "
+                    f"operation: "
+                    f"{operation.operation_name}"
+                )
 
-                sum_signal = rtl_design.requirement.outputs[0].signal_name
-                carry_signal = None
+                continue
 
-            for port in rtl_design.requirement.outputs:
-                    if port.signal_name.upper() == "CARRY":
-                        carry_signal = port.signal_name
-                        break
+            if not destination:
+                destination = (
+                    outputs[0].signal_name
+                )
 
-            if carry_signal:
-                    assign_statements.append(
-                        f"    assign {{{carry_signal}, {sum_signal}}} = {a} + {b};"
-                    )
-            else:
-                    assign_statements.append(
-                        f"    assign {sum_signal} = {a} + {b};"
-                    )
-
-            continue
-            # Backward-compatible implementation style
-            implementation_style = getattr(
-                operation,
-                "implementation_style",
-                "assign",
-            ).lower()
+            implementation_style = (
+                getattr(
+                    operation,
+                    "implementation_style",
+                    "assign",
+                )
+                .lower()
+            )
 
             if implementation_style == "always_comb":
 
                 comb_statements.append(
-                    f"{destination} = {expression};"
+                    f"        "
+                    f"{destination} = "
+                    f"{expression};"
                 )
 
             else:
@@ -199,12 +514,19 @@ class VerilogGenerator(HDLGenerator):
                     )
                 )
 
-        logic = []
+        # --------------------------------------------------
+        # Combine logic
+        # --------------------------------------------------
+
+        logic: list[str] = []
 
         if assign_statements:
-            logic.extend(assign_statements)
+            logic.extend(
+                assign_statements
+            )
 
         if comb_statements:
+
             logic.append(
                 VerilogFormatter.format_always_comb(
                     comb_statements
@@ -212,25 +534,46 @@ class VerilogGenerator(HDLGenerator):
             )
 
         if not logic:
+
             logic.append(
                 "    // Unsupported operation"
             )
-        print("\n========== GENERATED LOGIC ==========")
-        print(logic)
-        print("=====================================\n")
+
+        print(
+            "\n========== GENERATED LOGIC =========="
+        )
+
+        for statement in logic:
+            print(statement)
+
+        print(
+            "=====================================\n"
+        )
+
         return "\n\n".join(logic)
 
-    def generate(self, rtl_design: RTLDesign) -> str:
+    def generate(
+        self,
+        rtl_design: RTLDesign,
+    ) -> str:
+        """
+        Generate complete Verilog source.
+        """
 
         use_parameter = False
-
         parameters = []
+
+        # --------------------------------------------------
+        # Parameters
+        # --------------------------------------------------
 
         if rtl_design.parameters:
 
             use_parameter = True
 
-            for name, value in rtl_design.parameters.items():
+            for name, value in (
+                rtl_design.parameters.items()
+            ):
 
                 parameters.append(
                     VerilogFormatter.format_parameter(
@@ -241,9 +584,12 @@ class VerilogGenerator(HDLGenerator):
 
         elif rtl_design.requirement.inputs:
 
-            width = rtl_design.requirement.inputs[
-                0
-            ].signal_width
+            width = (
+                rtl_design
+                .requirement
+                .inputs[0]
+                .signal_width
+            )
 
             if width > 1:
 
@@ -256,28 +602,60 @@ class VerilogGenerator(HDLGenerator):
                     )
                 )
 
-        module_header = VerilogFormatter.format_module_header(
-            rtl_design.requirement.module_name,
-            parameters,
+        # --------------------------------------------------
+        # Module header
+        # --------------------------------------------------
+
+        module_header = (
+            VerilogFormatter.format_module_header(
+                rtl_design.requirement.module_name,
+                parameters,
+            )
         )
 
-        port_declarations = self._generate_port_declarations(
-            rtl_design,
-            use_parameter=use_parameter,
+        # --------------------------------------------------
+        # Ports
+        # --------------------------------------------------
+
+        port_declarations = (
+            self._generate_port_declarations(
+                rtl_design,
+                use_parameter=use_parameter,
+            )
         )
 
-        internal_signals = self._generate_internal_signals(
-            rtl_design,
-            use_parameter=use_parameter,
+        # --------------------------------------------------
+        # Internal signals
+        # --------------------------------------------------
+
+        internal_signals = (
+            self._generate_internal_signals(
+                rtl_design,
+                use_parameter=use_parameter,
+            )
         )
+
+        # --------------------------------------------------
+        # Logic
+        # --------------------------------------------------
 
         rtl_logic = self._generate_logic(
             rtl_design
         )
 
-        print("\n========== RTL SOURCE ==========")
+        print(
+            "\n========== RTL SOURCE =========="
+        )
+
         print(rtl_logic)
-        print("================================\n")
+
+        print(
+            "================================\n"
+        )
+
+        # --------------------------------------------------
+        # Complete Verilog
+        # --------------------------------------------------
 
         generated_code = (
             f"{module_header} (\n"
@@ -288,8 +666,15 @@ class VerilogGenerator(HDLGenerator):
             f"endmodule\n"
         )
 
-        print("\n========== COMPLETE GENERATED VERILOG ==========\n")
+        print(
+            "\n========== COMPLETE GENERATED "
+            "VERILOG ==========\n"
+        )
+
         print(generated_code)
-        print("\n================================================\n")
+
+        print(
+            "\n================================================\n"
+        )
 
         return generated_code

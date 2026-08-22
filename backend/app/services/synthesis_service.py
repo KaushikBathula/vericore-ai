@@ -64,6 +64,7 @@ class SynthesisService:
         yosys_script = output_directory / "design.ys"
         netlist_file = output_directory / "netlist.v"
         report_file = output_directory / "yosys.log"
+        schematic_dot_file = output_directory / f"{top_module}.dot"
 
         rtl_file.write_text(
             rtl_source,
@@ -74,6 +75,7 @@ class SynthesisService:
             rtl_file=rtl_file,
             top_module=top_module,
             netlist_file=netlist_file,
+            schematic_dot_file=schematic_dot_file,
         )
 
         yosys_script.write_text(
@@ -86,4 +88,5 @@ class SynthesisService:
             yosys_script=yosys_script,
             netlist_file=netlist_file,
             report_file=report_file,
+            schematic_dot_file=schematic_dot_file,
         )

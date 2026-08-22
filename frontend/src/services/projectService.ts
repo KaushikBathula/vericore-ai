@@ -12,3 +12,8 @@ export interface Project {
 export async function getProjects(): Promise<Project[]> {
   return apiRequest<Project[]>("/projects");
 }
+export async function getProject(
+  projectId: number,
+): Promise<Project> {
+  return apiRequest<Project>(`/projects/${projectId}`);
+}

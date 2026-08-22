@@ -60,6 +60,7 @@ class SynthesisRunner:
         yosys_script: Path,
         netlist_file: Path,
         report_file: Path,
+        schematic_dot_file: Path,
     ) -> SynthesisResult:
         """
         Run RTL synthesis.
@@ -123,6 +124,32 @@ class SynthesisRunner:
 
         if synthesis_success:
             logger.info("Synthesis completed successfully.")
+
+            svg_file = schematic_dot_file.with_suffix(".svg")
+
+            graphviz_process = subprocess.run(
+                [
+                    "dot",
+                    "-Tsvg",
+                    str(schematic_dot_file.resolve()),
+                    "-o",
+                    str(svg_file.resolve()),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=report_file.parent,
+            )
+
+            if graphviz_process.returncode == 0:
+                logger.info(
+                    "Synthesis schematic SVG generated successfully."
+                )
+            else:
+                logger.error(
+                    "Failed to generate synthesis schematic SVG."
+                )
+                logger.error(graphviz_process.stderr)
+
         else:
             logger.error("Synthesis failed.")
 
