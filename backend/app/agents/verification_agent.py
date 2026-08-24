@@ -74,12 +74,17 @@ class VerificationAgent:
             user_prompt=user_prompt,
         )
 
-        print(
-            "\n========== RAW VERIFICATION RESPONSE ==========\n"
+        logger.info(
+            "Verification LLM response received: %d characters",
+            len(response.content or ""),
         )
-        print(response.content)
+
         print(
-            "\n===============================================\n"
+            "\n========== VERIFICATION LLM RESPONSE ==========\n"
+        )
+        print((response.content or "")[:2000])
+        print(
+            "\n========== END RESPONSE PREVIEW ===============\n"
         )
 
         if not response.success:
@@ -1016,4 +1021,4 @@ class VerificationAgent:
                 signal_name
             ] = numeric_value
 
-        return normalized
+        return normalized       

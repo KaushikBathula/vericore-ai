@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Download } from "lucide-react";
 
 import { getProject, Project } from "@/services/projectService";
 import { getPipelineArtifacts } from "@/services/pipelineService";
@@ -12,6 +12,21 @@ interface ProjectPageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+function artifactUrl(url: string | null): string | null {
+  if (!url) {
+    return null;
+  }
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+  return `${baseUrl}${url}`;
 }
 
 export default function ProjectPage({
@@ -40,6 +55,7 @@ export default function ProjectPage({
           const artifactData = await getPipelineArtifacts(
             projectData.project_name,
           );
+
           setArtifacts(artifactData);
         } catch {
           setArtifacts(null);
@@ -90,6 +106,71 @@ export default function ProjectPage({
 
   const artifactAvailable = Boolean(artifacts);
 
+  const artifactCards = artifacts
+    ? [
+        {
+          name: "RTL",
+          description: "Generated synthesizable Verilog",
+          content: artifacts.rtl_source,
+          url: artifacts.download_urls.rtl,
+        },
+        {
+          name: "Testbench",
+          description: "Generated verification testbench",
+          content: artifacts.testbench_source,
+          url: artifacts.download_urls.testbench,
+        },
+        {
+          name: "Simulation Output",
+          description: "RTL simulation results",
+          content: artifacts.simulation_output,
+          url: artifacts.download_urls.simulation_output,
+        },
+        {
+          name: "Simulation Waveform",
+          description: "RTL VCD waveform",
+          content: artifacts.simulation_waveform_source,
+          url: artifacts.download_urls.simulation_waveform,
+        },
+        {
+          name: "Synthesis Netlist",
+          description: "Post-synthesis Verilog netlist",
+          content: artifacts.artifact_paths.synthesis_netlist,
+          url: artifacts.download_urls.synthesis_netlist,
+        },
+        {
+          name: "Synthesis Report",
+          description: "Yosys synthesis report",
+          content: artifacts.synthesis_report,
+          url: artifacts.download_urls.synthesis_report,
+        },
+        {
+          name: "Schematic",
+          description: "Generated circuit schematic",
+          content: artifacts.artifact_paths.synthesis_schematic_svg,
+          url: artifacts.download_urls.synthesis_schematic_svg,
+        },
+        {
+          name: "Post-Synthesis Simulation",
+          description: "Netlist simulation results",
+          content: artifacts.post_synthesis_simulation_output,
+          url: artifacts.download_urls.post_synthesis_simulation_output,
+        },
+        {
+          name: "Post-Synthesis Waveform",
+          description: "Post-synthesis VCD waveform",
+          content: artifacts.post_synthesis_waveform_source,
+          url: artifacts.download_urls.post_synthesis_waveform,
+        },
+        {
+          name: "Documentation",
+          description: "Generated project documentation",
+          content: artifacts.documentation_markdown,
+          url: artifacts.download_urls.documentation,
+        },
+      ]
+    : [];
+
   return (
     <div className="space-y-8">
       <Link
@@ -106,7 +187,8 @@ export default function ProjectPage({
         </h1>
 
         <p className="mt-2 text-muted-foreground">
-          {project.description || "No project description available."}
+          {project.description ||
+            "No project description available."}
         </p>
       </div>
 
@@ -120,6 +202,7 @@ export default function ProjectPage({
             <p className="text-sm text-muted-foreground">
               Project / Module Name
             </p>
+
             <p className="mt-1 font-medium">
               {project.project_name}
             </p>
@@ -129,6 +212,7 @@ export default function ProjectPage({
             <p className="text-sm text-muted-foreground">
               Status
             </p>
+
             <p className="mt-1 font-medium">
               {project.status}
             </p>
@@ -138,6 +222,7 @@ export default function ProjectPage({
             <p className="text-sm text-muted-foreground">
               Project ID
             </p>
+
             <p className="mt-1 font-medium">
               {project.id}
             </p>
@@ -145,7 +230,7 @@ export default function ProjectPage({
 
           <div>
             <p className="text-sm text-muted-foreground">
-              Current Run / Generated Artifacts
+              Generated Artifacts
             </p>
 
             <div className="mt-1 flex items-center gap-2">
@@ -171,46 +256,62 @@ export default function ProjectPage({
 
       {artifacts && (
         <section className="rounded-xl border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">
-            Generated Artifacts
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold">
+              Generated Artifacts
+            </h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Artifacts generated by the VeriCore AI pipeline.
+            </p>
+          </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[
-              ["RTL", artifacts.rtl_source],
-              ["Testbench", artifacts.testbench_source],
-              ["Simulation Output", artifacts.simulation_output],
-              [
-                "Simulation Waveform",
-                artifacts.simulation_waveform_source,
-              ],
-              ["Synthesis Report", artifacts.synthesis_report],
-              [
-                "Post-Synthesis Simulation",
-                artifacts.post_synthesis_simulation_output,
-              ],
-              [
-                "Post-Synthesis Waveform",
-                artifacts.post_synthesis_waveform_source,
-              ],
-              [
-                "Documentation",
-                artifacts.documentation_markdown,
-              ],
-            ].map(([name, content]) => (
-              <div
-                key={name}
-                className="rounded-lg border p-4"
-              >
-                <p className="font-medium">
-                  {name}
-                </p>
+            {artifactCards.map((artifact) => {
+              const downloadUrl = artifactUrl(artifact.url);
 
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {content ? "Available" : "Not available"}
-                </p>
-              </div>
-            ))}
+              return (
+                <div
+                  key={artifact.name}
+                  className="rounded-lg border p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">
+                        {artifact.name}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {artifact.description}
+                      </p>
+                    </div>
+
+                    {artifact.content && downloadUrl ? (
+                      <a
+                        href={downloadUrl}
+                        download
+                        className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition hover:bg-muted"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Download
+                      </a>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4">
+                    {artifact.content ? (
+                      <span className="text-sm font-medium">
+                        ✓ Available
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Not available
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

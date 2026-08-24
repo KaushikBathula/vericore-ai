@@ -15,8 +15,8 @@ export function getModuleNameFromReportPath(
   const generatedProjectsIndex = parts.lastIndexOf("generated_projects");
 
   if (
-    generatedProjectsIndex >= 0
-    && parts.length > generatedProjectsIndex + 1
+    generatedProjectsIndex >= 0 &&
+    parts.length > generatedProjectsIndex + 1
   ) {
     return parts[generatedProjectsIndex + 1] || null;
   }
@@ -39,6 +39,17 @@ export function getArtifactUrl(path: string | null): string | null {
   }
 
   return `${API_BASE_URL}${path}`;
+}
+
+export async function runPipeline(
+  requirement: string,
+): Promise<PipelineResponse> {
+  return ApiClient.post<PipelineResponse>(
+    "/pipeline/run",
+    {
+      requirement,
+    },
+  );
 }
 
 export async function getPipelineArtifacts(

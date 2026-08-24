@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { usePipeline } from "@/context/PipelineContext";
-import { RequirementsService } from "@/services/requirements.service";
+import { runPipeline } from "@/services/pipelineService";
 
 export default function RequirementForm() {
   const router = useRouter();
   const { setLatestPipelineResult } = usePipeline();
+
   const [projectName, setProjectName] = useState("");
   const [requirement, setRequirement] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -26,18 +28,19 @@ export default function RequirementForm() {
       setIsGenerating(true);
       setError("");
 
-      const response = await RequirementsService.generateRTL({
-        requirement: requirement.trim(),
-      });
+      const response = await runPipeline(requirement.trim());
+
+      console.log("Pipeline response:", response);
 
       setLatestPipelineResult(response);
       router.push("/pipeline");
-    } catch (error) {
-      console.error(error);
+    } catch (caughtError: unknown) {
+      console.error("Pipeline execution failed:", caughtError);
+
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to start RTL generation pipeline.",
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Failed to start the pipeline.",
       );
     } finally {
       setIsGenerating(false);
@@ -54,7 +57,6 @@ export default function RequirementForm() {
         Enter your hardware specification below.
       </p>
 
-      {/* Project Name */}
       <div className="mt-6 space-y-2">
         <label
           htmlFor="projectName"
@@ -73,7 +75,6 @@ export default function RequirementForm() {
         />
       </div>
 
-      {/* Requirement Description */}
       <div className="mt-6 space-y-2">
         <label
           htmlFor="requirement"
@@ -112,14 +113,12 @@ Outputs:
         />
       </div>
 
-      {/* Error Message */}
       {error && (
         <p className="mt-4 text-sm text-red-600">
           {error}
         </p>
       )}
 
-      {/* Generate RTL Button */}
       <div className="mt-6">
         <Button
           type="button"
@@ -127,7 +126,7 @@ Outputs:
           disabled={isGenerating}
           onClick={handleGenerateRTL}
         >
-          {isGenerating ? "Generating..." : "Generate RTL"}
+          {isGenerating ? "Running Pipeline..." : "Generate RTL"}
         </Button>
       </div>
     </div>
